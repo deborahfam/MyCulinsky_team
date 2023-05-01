@@ -181,6 +181,37 @@ template <typename T> struct dinic {
 	}
 };
 
+void map_cycles(vector<int> &a, vector<int> &b, vector<int> &cca,
+                vector<int> &ccb, vector<int> &sz, vector<vector<int>> &cycles,
+                int &cc) {
+	int n = a.size();
+	for (int i = 0; i < n; i++) {
+		if (cca[i])
+			continue;
+		int act = i;
+		while (!cca[act]) {
+			cca[act] = cc;
+			cycles[cc].push_back(act);
+			sz[cc]++;
+			act = a[act];
+		}
+		cc++;
+	}
+
+	for (int i = 0; i < n; i++) {
+		if (ccb[i])
+			continue;
+		int act = i;
+		while (!ccb[act]) {
+			ccb[act] = cc;
+			cycles[cc].push_back(act);
+			sz[cc]++;
+			act = b[act];
+		}
+		cc++;
+	}
+}
+
 typedef pair<int, int> pii;
 
 vector<int> exists_solution(vector<int> &cca, vector<int> &ccb, vector<int> &sz,
@@ -225,6 +256,22 @@ vector<int> exists_solution(vector<int> &cca, vector<int> &ccb, vector<int> &sz,
 				ans[common_spot[pii(i, e.dst)] - 1] = e.flow;
 
 	return ans;
+}
+
+vector<int> find_suitable_freqs(vector<int> &cca, vector<int> &ccb,
+                                vector<int> &sz, int cc) {
+	// Usemos busqueda binaria para hallar la longitud minima de una secuencia
+	// terminal
+
+	int p2n = 1, sol_len = -1, n = cca.size();
+	while (p2n <= n)
+		p2n <<= 1;
+	for (; p2n; p2n >>= 1)
+		if (exists_solution(cca, ccb, sz, cc, sol_len + p2n).size() == 0)
+			sol_len += p2n;
+	sol_len++;
+
+	return exists_solution(cca, ccb, sz, cc, sol_len);
 }
 
 pii dfs(int u, vector<vector<pii>> &g, vector<bool> &mk, vector<pii> &parent) {
@@ -404,47 +451,12 @@ vector<int> solve(vector<int> &a, vector<int> &b) {
 	int cc = 1;
 	vector<int> cca(n), ccb(n), sz(2 * n + 5);
 	vector<vector<int>> cycles(2 * n + 5);
-	for (int i = 0; i < n; i++) {
-		if (cca[i])
-			continue;
-		int act = i;
-		while (!cca[act]) {
-			cca[act] = cc;
-			cycles[cc].push_back(act);
-			sz[cc]++;
-			act = a[act];
-		}
-		cc++;
-	}
-
-	for (int i = 0; i < n; i++) {
-		if (ccb[i])
-			continue;
-		int act = i;
-		while (!ccb[act]) {
-			ccb[act] = cc;
-			cycles[cc].push_back(act);
-			sz[cc]++;
-			act = b[act];
-		}
-		cc++;
-	}
-
-	// Usemos busqueda binaria para hallar la longitud minima de una secuencia
-	// terminal
-
-	int p2n = 1, sol_len = -1;
-	while (p2n <= n)
-		p2n <<= 1;
-	for (; p2n; p2n >>= 1)
-		if (exists_solution(cca, ccb, sz, cc, sol_len + p2n).size() == 0)
-			sol_len += p2n;
-	sol_len++;
+	map_cycles(a, b, cca, ccb, sz, cycles, cc);
 
 	// Se tienen una lista de frecuencias que no tiene por que cumplir que el
 	// grafo bipartito asociado sea un bosque
 
-	vector<int> freqs = exists_solution(cca, ccb, sz, cc, sol_len);
+	vector<int> freqs = find_suitable_freqs(cca, ccb, sz, cc);
 
 	// Usemos el algoritmo visto para modificar la lista de frecuencias de forma
 	// tal que el grafo bipartito asociado sea un bosque
@@ -452,7 +464,7 @@ vector<int> solve(vector<int> &a, vector<int> &b) {
 	remove_cycles(cca, ccb, freqs, cc);
 
 	// Con la lista de frecuencias final, solo es necesario encontrar la
-	// secuencia respuesta. Para esto, se construye primero una solucion para
+	// secuencia respuesta. Para esto, se construye primero una solución para
 	// cada ciclo de las permutaciones y a partir de este se halla la respuesta
 	// final
 
@@ -460,8 +472,8 @@ vector<int> solve(vector<int> &a, vector<int> &b) {
 	    build_relative_solutions(freqs, cycles, cc);
 
 	// A partir de las soluciones relativas para cada ciclo se construye la
-	// solucion final, buscando una secuencia de operaciones que contenga como
-	// subsecuencia a todas las secuencias solucion halladas para cada ciclo
+	// solución final, buscando una secuencia de operaciones que contenga como
+	// subsecuencia a todas las secuencias solución halladas para cada ciclo
 	// individual
 
 	vector<int> ans = find_super_seq(relative_solutions, n);
@@ -472,10 +484,10 @@ vector<int> solve(vector<int> &a, vector<int> &b) {
 int main() {
 
 	cout << "Seleccione el modo de prueba:\n";
-	cout << "1 - Comprueba fuerza bruta vs solucion propuesta.\n";
-	cout << "2 - Comprueba que la solucion propuesta genera una secuencia "
+	cout << "1 - Comprueba fuerza bruta vs solución propuesta.\n";
+	cout << "2 - Comprueba que la solución propuesta genera una secuencia "
 	        "terminal e imprime los valores generados y la secuencia de "
-	        "operaciones solucion.\n";
+	        "operaciones solución.\n";
 
 	int mode;
 	cin >> mode;
@@ -488,7 +500,7 @@ int main() {
 	if (mode == 1) {
 		cout << "Imprimir las permutaciones iniciales y las secuencias "
 		        "generadas "
-		        "por la fuerza bruta y la solucion propuesta? (0-1)\n";
+		        "por la fuerza bruta y la solución propuesta? (0-1)\n";
 		cin >> debug;
 	}
 
@@ -560,7 +572,7 @@ int main() {
 			continue;
 		}
 
-		// se comprobo lo que se queria
+		// se comprobó lo que se quería
 
 		cout << "Test " << i + 1 << ": ok\n";
 		cout << flush;
